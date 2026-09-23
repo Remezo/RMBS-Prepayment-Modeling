@@ -1,3 +1,5 @@
+[Start here: run in VS Code](docs/VSCODE.md)
+
 # Available partial dataset
 
 The conversion is intentionally stopped. Use `--allow-partial` to read the verified snapshot. See [working year/month/range and origination examples](docs/EXAMPLES.md). The full-archive `_SUCCESS` marker is absent by design; `_PARTIAL_SUCCESS` validates the partial manifest.
