@@ -2,7 +2,7 @@
 
 ## This is how you can read the data
 
-1. Download the shared access-key CSV from our [team access-key folder](https://drive.google.com/drive/u/0/folders/1yqB9Pjfqd_yNYSHx1I_H1BjJtEETLeKH). If Drive asks for access, contact Mike. Keep the CSV outside this repository and never paste keys into code or GitHub.
+1. Download the shared access-key CSV from our [team access-key folder](https://drive.google.com/drive/u/0/folders/1yqB9Pjfqd_yNYSHx1I_H1BjJtEETLeKH). If Drive asks for access, contact Isha. Keep the CSV outside this repository and never paste keys into code or GitHub.
 2. Install the [AWS CLI](https://aws.amazon.com/cli/), clone this repository and install the Python requirements (see [GET_STARTED.md](GET_STARTED.md)).
 3. In your terminal, run `aws configure --profile sfld`. Enter the **Access key ID** and **Secret access key** from the CSV, region **us-east-2**, and output format **json**.
 4. From the repository folder, run this Python example using your project environment:
