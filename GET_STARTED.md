@@ -5,11 +5,11 @@
 You need access to this private GitHub repository. In a terminal:
 
 ```bash
-git clone https://github.com/Remezo/mortgage-prepayment-research.git
-cd mortgage-prepayment-research
+git clone https://github.com/Remezo/RMBS-Prepayment-Modeling.git
+cd RMBS-Prepayment-Modeling
 ```
 
-Already cloned it? Open its folder and run `git pull`. In VS Code use **File → Open Folder**, select `mortgage-prepayment-research`, then **Terminal → New Terminal**.
+Already cloned it? Open its folder and run `git pull`. In VS Code use **File → Open Folder**, select `RMBS-Prepayment-Modeling`, then **Terminal → New Terminal**.
 
 ## 2. Install the Python environment
 
@@ -29,7 +29,7 @@ Install Microsoft’s Python extension in VS Code and choose **Python: Select In
 
 **Mike:** use the existing AWS CLI login. Check `aws sts get-caller-identity`. If expired, run `aws login --region us-east-2` and select Sky is the Limit. On this Mac, `export PATH="$HOME/.local/bin:$PATH"` makes the installed CLI available.
 
-**Classmates:** request your individual S3-only credentials from Mike. They have not yet been issued. Once issued, run `aws configure --profile sfld`, enter your own credentials privately, and use region `us-east-2`. Add `--profile sfld` to each command below. Do not use Mike’s administrator login or commit credentials.
+**Classmates:** download the shared S3-only credentials from the team Drive folder linked at the top of [README.md](README.md). Run `aws configure --profile sfld`, enter the shared credentials privately, and use region `us-east-2`. Add `--profile sfld` to each command below. Do not use Mike’s administrator login or commit credentials.
 
 ## 4. Try 1,000 rows
 

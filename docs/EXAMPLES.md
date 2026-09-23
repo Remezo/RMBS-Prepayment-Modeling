@@ -5,8 +5,9 @@ The available dataset is a deliberately partial snapshot: 158 verified source fi
 Reporting years/months contain only loans from included source files. They are not
 complete coverage of every loan in that reporting period. Uncommitted files are excluded.
 
-Each person needs their own AWS identity with the dataset read-only permissions.
-GitHub access does not grant S3 access. Do not share AWS passwords or keys.
+Use the shared `sfld-class-readonly` credentials from the team Drive folder linked
+in [README.md](../README.md). GitHub access does not grant S3 access. Do not share
+the credentials outside the authorized project team.
 Install the repository requirements and configure your own AWS profile named `sfld`.
 Use your institution/account's supplied sign-in instructions; `--profile sfld` selects
 that identity. On EC2 with an authorized role, omit `--profile sfld`.

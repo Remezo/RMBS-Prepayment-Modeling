@@ -5,11 +5,11 @@
 In a terminal:
 
 ```bash
-git clone https://github.com/Remezo/mortgage-prepayment-research.git
-cd mortgage-prepayment-research
+git clone https://github.com/Remezo/RMBS-Prepayment-Modeling.git
+cd RMBS-Prepayment-Modeling
 ```
 
-In VS Code choose **File → Open Folder** and select `mortgage-prepayment-research`.
+In VS Code choose **File → Open Folder** and select `RMBS-Prepayment-Modeling`.
 Open **Terminal → New Terminal** and run:
 
 ```bash
@@ -65,16 +65,15 @@ Files are saved under the ignored `data/` folder.
 For Python examples and matching monthly observations to origination records, see
 [EXAMPLES.md](EXAMPLES.md). Omit `profile='sfld'` in those examples to use Mike's default login.
 
-## Classmates: individual S3 credentials
+## Classmates: shared S3 credentials
 
-Classmate credentials have not been issued yet. Once each person receives their own
-scoped access key privately, they can configure it interactively:
+The shared classmate credentials are in the team Drive folder linked from the main README. Configure them interactively:
 
 ```bash
 aws configure --profile sfld
 ```
 
-Enter their own key ID and secret at the prompts, region `us-east-2`, and output `json`.
+Enter the shared key ID and secret at the prompts, region `us-east-2`, and output `json`.
 Then add `--profile sfld` to the example commands. Never paste keys into source code,
 chat, notebooks, or GitHub. GitHub repository access is separate from AWS access.
 

@@ -1,3 +1,7 @@
+# Current team access
+
+The team uses the shared `sfld-class-readonly` IAM user. Download its key CSV from the team Drive folder linked in [README.md](../README.md), then configure `aws configure --profile sfld`. The key was tested by listing S3 and reading 1,000 verified rows. This document’s individual-access guidance below is an alternative for future migration, not the current setup.
+
 # Private access for classmates
 
 GitHub and AWS are separate permission systems. A GitHub invitation grants access to this code; it does not let someone read S3.

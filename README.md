@@ -1,4 +1,30 @@
-# Decoding Mortgage Prepayments
+# RMBS Prepayment Modeling
+
+## This is how you can read the data
+
+1. Download the shared access-key CSV from our [team access-key folder](https://drive.google.com/drive/u/0/folders/1yqB9Pjfqd_yNYSHx1I_H1BjJtEETLeKH). If Drive asks for access, contact Mike. Keep the CSV outside this repository and never paste keys into code or GitHub.
+2. Install the [AWS CLI](https://aws.amazon.com/cli/), clone this repository and install the Python requirements (see [GET_STARTED.md](GET_STARTED.md)).
+3. In your terminal, run `aws configure --profile sfld`. Enter the **Access key ID** and **Secret access key** from the CSV, region **us-east-2**, and output format **json**.
+4. From the repository folder, run this Python example using your project environment:
+
+```python
+from sfld.access import load_month_sample
+
+# Read up to 1,000 records from January 2020.
+data = load_month_sample(
+    2020, 1, profile="sfld", limit=1000, allow_partial=True
+)
+print(data.slice(0, 5).to_pylist())
+```
+
+Change `2020, 1` to your reporting year and month. This is a small deterministic preview,
+not the entire month or a representative training sample. The dataset is the accepted
+partial archive. [Full year, month, year-range and origination examples](docs/EXAMPLES.md).
+
+The shared `sfld-class-readonly` credentials were tested successfully against S3.
+GitHub access and access to the Drive folder are separate; the folder's sharing
+permissions have not been verified by this repository. Only authorized teammates
+should receive the credentials.
 
 A shared research project on mortgage prepayment prediction and structured credit, based on Isha Wadekar’s project presentation. The repository combines the existing Freddie Mac SFLD import tools with a documented workflow for cleaning, feature engineering, LightGBM modelling, validation, and RMBS cash-flow analysis.
 
@@ -54,4 +80,4 @@ tests/                   Automated converter and access tests
 
 [Year/month/range examples](docs/EXAMPLES.md) · [VS Code details](docs/VSCODE.md) · [AWS access](docs/ACCESS.md) · [Validation](docs/VALIDATION.md)
 
-GitHub invitations and AWS permissions are separate. Classmate AWS credentials have **not** been issued. Do not use AWS project invitations for S3-only access: those grant project administration.
+GitHub invitations and AWS permissions are separate. Shared classmate AWS credentials are available through the team folder linked above. Do not use AWS project invitations for S3-only access: those grant project administration.

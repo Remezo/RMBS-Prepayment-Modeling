@@ -4,7 +4,8 @@
 
 - [x] Convert and verify accepted partial Parquet snapshot.
 - [x] Add year, month, range and origination access examples.
-- [ ] Issue individual S3-only credentials; test each identity's permitted and denied actions.
+- [x] Test the shared class user by listing S3 and reading a verified sample.
+- [ ] Audit the shared user’s full effective permissions and agree key rotation responsibility.
 - [ ] Invite GitHub collaborators and agree workstream owners.
 - [ ] Produce a coverage table from the verified manifest.
 - [ ] Confirm licensed macro-data access and release-date metadata.
