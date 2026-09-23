@@ -4,6 +4,8 @@ A shared research project on mortgage prepayment prediction and structured credi
 
 **New here? Read [GET_STARTED.md](GET_STARTED.md).**
 
+Track team work on the private [GitHub project board](https://github.com/users/Remezo/projects/6).
+
 ## Project stages
 
 | Stage | Start here | Current status |
