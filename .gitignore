@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pem
+.env*
+.aws/
+work/
+data/
+*.zip
+*.parquet
+*.duckdb*
+*.log
+.DS_Store

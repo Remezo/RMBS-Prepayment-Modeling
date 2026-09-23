@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListOnlyClassDataset",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::s3sfld",
+      "Condition": {"StringLike": {"s3:prefix": ["parquet/release47-monthly", "parquet/release47-monthly/*"]}}
+    },
+    {
+      "Sid": "ReadOnlyClassDataset",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::s3sfld/parquet/release47-monthly/*"
+    }
+  ]
+}
