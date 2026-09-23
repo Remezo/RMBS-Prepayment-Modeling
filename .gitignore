@@ -12,3 +12,8 @@ data/
 *.duckdb*
 *.log
 .DS_Store
+
+*.joblib
+*.pkl
+*.pickle
+.ipynb_checkpoints/

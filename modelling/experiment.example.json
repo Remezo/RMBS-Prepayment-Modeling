@@ -1,0 +1,16 @@
+{
+  "experiment_id": "replace-with-unique-name",
+  "dataset": "s3://s3sfld/parquet/release47-monthly",
+  "allow_partial": true,
+  "manifest_sha256": null,
+  "target_definition": null,
+  "label_horizon_months": null,
+  "train_window": null,
+  "validation_window": null,
+  "test_window": null,
+  "features": [],
+  "excluded_leakage_columns": [],
+  "random_seed": 42,
+  "model": "baseline_before_lightgbm",
+  "status": "design_only"
+}
