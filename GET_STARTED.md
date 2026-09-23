@@ -5,11 +5,11 @@
 You need access to this private GitHub repository. In a terminal:
 
 ```bash
-git clone https://github.com/Remezo/sfld-parquet.git
-cd sfld-parquet
+git clone https://github.com/Remezo/mortgage-prepayment-research.git
+cd mortgage-prepayment-research
 ```
 
-Already cloned it? Open its folder and run `git pull`. In VS Code use **File → Open Folder**, select `sfld-parquet`, then **Terminal → New Terminal**.
+Already cloned it? Open its folder and run `git pull`. In VS Code use **File → Open Folder**, select `mortgage-prepayment-research`, then **Terminal → New Terminal**.
 
 ## 2. Install the Python environment
 

@@ -5,11 +5,11 @@
 In a terminal:
 
 ```bash
-git clone https://github.com/Remezo/sfld-parquet.git
-cd sfld-parquet
+git clone https://github.com/Remezo/mortgage-prepayment-research.git
+cd mortgage-prepayment-research
 ```
 
-In VS Code choose **File → Open Folder** and select `sfld-parquet`.
+In VS Code choose **File → Open Folder** and select `mortgage-prepayment-research`.
 Open **Terminal → New Terminal** and run:
 
 ```bash
