@@ -85,3 +85,29 @@ def test_modified_source_cannot_resume(tmp_path):
     run(str(source),str(tmp_path/'data'),tmp_path/'work')
     archive(source,('202003',))
     with pytest.raises(ValueError,match='changed'):run(str(source),str(tmp_path/'data'),tmp_path/'work')
+
+
+def test_partial_selection_and_year_range():
+    import io
+    import json
+    import hashlib
+    from sfld.access import select_files
+    files = [
+        {'path': 'performance/year=2019/month=01/a.parquet'},
+        {'path': 'performance/year=2020/month=01/b.parquet'},
+        {'path': 'performance/year=2020/month=02/c.parquet'},
+        {'path': 'origination/cohort_year=2018/d.parquet'},
+    ]
+    raw=json.dumps({'files':files,'full_archive':False}).encode()
+    class S3:
+        def get_object(self, Bucket, Key):
+            assert Key.endswith(('_PARTIAL_SUCCESS','manifest.partial.json'))
+            data=raw if Key.endswith('manifest.partial.json') else json.dumps({'manifest_sha256':hashlib.sha256(raw).hexdigest()}).encode()
+            return {'Body':io.BytesIO(data)}
+    s3=S3()
+    assert len(select_files(2019,2020,allow_partial=True,s3=s3)) == 3
+    assert len(select_files(2020,month=1,allow_partial=True,s3=s3)) == 1
+    assert len(select_files(2018,kind='origination',allow_partial=True,s3=s3)) == 1
+    import pytest
+    with pytest.raises(ValueError):
+        select_files(2018,kind='origination',month=1,allow_partial=True,s3=s3)

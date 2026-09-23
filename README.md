@@ -1,3 +1,7 @@
+# Available partial dataset
+
+The conversion is intentionally stopped. Use `--allow-partial` to read the verified snapshot. See [working year/month/range and origination examples](docs/EXAMPLES.md). The full-archive `_SUCCESS` marker is absent by design; `_PARTIAL_SUCCESS` validates the partial manifest.
+
 # SFLD Parquet for classmates
 
 Convert Freddie Mac's Standard Single-Family Loan-Level Dataset (Release 47 / July 2026 layout) into compressed Parquet and read a selected reporting month from a private S3 bucket.
