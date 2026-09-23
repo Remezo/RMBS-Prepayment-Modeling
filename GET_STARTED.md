@@ -27,32 +27,30 @@ Install Microsoft’s Python extension in VS Code and choose **Python: Select In
 
 ## 3. Connect to S3
 
-**Mike:** use the existing AWS CLI login. Check `aws sts get-caller-identity`. If expired, run `aws login --region us-east-2` and select Sky is the Limit. On this Mac, `export PATH="$HOME/.local/bin:$PATH"` makes the installed CLI available.
-
-**Classmates:** download the shared S3-only credentials from the team Drive folder linked at the top of [README.md](README.md). Run `aws configure --profile sfld`, enter the shared credentials privately, and use region `us-east-2`. Add `--profile sfld` to each command below. Do not use Mike’s administrator login or commit credentials.
+**Team:** download the shared S3-only access-key CSV from the Drive folder linked in [README.md](README.md). Run `aws configure --profile sfld`, enter the key ID and secret privately, use region `us-east-2` and output `json`. The commands below use this profile. Keep the CSV outside the repository and never commit credentials.
 
 ## 4. Try 1,000 rows
 
 ```bash
-python scripts/classmate_sample.py --year 2020 --month 1 --limit 1000 --allow-partial
+python scripts/classmate_sample.py --year 2020 --month 1 --limit 1000 --allow-partial --profile sfld
 ```
 
-Expected: a row count and five preview records. This is a deterministic sample, not a representative training dataset.
+Expected: a row count and five preview records. 
 
 ## 5. Choose your data
 
 ```bash
 # Preview a full reporting year, without downloading it
-python scripts/download_data.py --year 2020 --allow-partial
+python scripts/download_data.py --year 2020 --allow-partial --profile sfld
 
 # Download one reporting month (~177 MB for January 2020)
-python scripts/download_data.py --year 2020 --month 1 --allow-partial --download --max-download-gb 2
+python scripts/download_data.py --year 2020 --month 1 --allow-partial --profile sfld --download --max-download-gb 2
 
 # Preview an inclusive range (~6.24 GB for 2018–2020)
-python scripts/download_data.py --year 2018 --end-year 2020 --allow-partial
+python scripts/download_data.py --year 2018 --end-year 2020 --allow-partial --profile sfld
 
 # Download original loan records for the 2020 cohort
-python scripts/download_data.py --kind origination --year 2020 --allow-partial --download --max-download-gb 2
+python scripts/download_data.py --kind origination --year 2020 --allow-partial --profile sfld --download --max-download-gb 2
 ```
 
 Reporting year and loan-cohort year mean different things. Use the monthly data’s `cohort_year` values to select origination files and join on `loan_identifier`. See the complete [join example](docs/EXAMPLES.md).
@@ -77,7 +75,7 @@ Read [ROADMAP.md](ROADMAP.md). Create an issue, agree an owner, and use a branch
 |---|---|
 | GitHub 404 | Sign into the invited GitHub account; ask Mike for repo access |
 | Missing credentials / AccessDenied | Check your own AWS profile and request dataset permissions |
-| `_SUCCESS` missing | Add `--allow-partial`; this is intentionally a partial dataset |
+| `_SUCCESS` missing | Add `--allow-partial --profile sfld`; this is intentionally a partial dataset |
 | Download cap exceeded | Preview selection size, narrow the selection or raise the cap deliberately |
 | No matching files | Check coverage; not every source cohort is included |
 | Package import fails | Select the `.venv` interpreter and reinstall requirements |

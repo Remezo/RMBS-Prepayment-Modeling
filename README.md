@@ -26,7 +26,9 @@ GitHub access and access to the Drive folder are separate; the folder's sharing
 permissions have not been verified by this repository. Only authorized teammates
 should receive the credentials.
 
-A shared research project on mortgage prepayment prediction and structured credit, based on Isha Wadekar’s project presentation. The repository combines the existing Freddie Mac SFLD import tools with a documented workflow for cleaning, feature engineering, LightGBM modelling, validation, and RMBS cash-flow analysis.
+
+
+
 
 **New here? Read [GET_STARTED.md](GET_STARTED.md).**
 
@@ -48,21 +50,6 @@ The accepted partial dataset contains **1,952,902,609 rows**, about **33.35 GB**
 Location: `s3://s3sfld/parquet/release47-monthly/`.
 Use `--allow-partial` to acknowledge this snapshot. The partial manifest lists verified files; uncommitted files must not be used. Raw data and credentials never belong in this repository.
 
-## Research workflow
-
-1. Record the input manifest, reporting window, and selected cohorts.
-2. Audit identifiers, dates, missing values, duplicates, source codes, and join coverage.
-3. Define prepayment labels and the population at risk before training.
-4. Add loan and borrower features, then licensed macro data using publication dates.
-5. Compare a simple baseline with LightGBM using chronological validation.
-6. Report calibration and discrimination across rate regimes.
-7. Translate validated probabilities into clearly specified cash-flow scenarios.
-
-The deck proposes Bloomberg macroeconomic inputs; no Bloomberg data has been acquired or included. Valuation outputs are a later research stage, not an implemented production pricing model.
-
-## Working together
-
-Team: Mike, Isha, Devansh, Shivam, Carl, and Hyumin. Workstream ownership is unassigned until the team agrees. Use an issue for each task and a branch/pull request for changes. See [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md), and [the experiment template](results/EXPERIMENT_TEMPLATE.md).
 
 ## Repository map
 
@@ -80,4 +67,4 @@ tests/                   Automated converter and access tests
 
 [Year/month/range examples](docs/EXAMPLES.md) · [VS Code details](docs/VSCODE.md) · [AWS access](docs/ACCESS.md) · [Validation](docs/VALIDATION.md)
 
-GitHub invitations and AWS permissions are separate. Shared classmate AWS credentials are available through the team folder linked above. Do not use AWS project invitations for S3-only access: those grant project administration.
+
