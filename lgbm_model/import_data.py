@@ -1,14 +1,15 @@
 import duckdb
 import glob
 import os
-def sample_data(files,num_rows_each=1000):
+def sample_data(files,num_rows_each=1000000,verbosity=1):
 
     con=duckdb.connect()
     con.execute("Set Preserve_insertion_order=false")
 
     #Create a sample file for each file 
     for i,file in enumerate(files, start=1):
-        print(f"Processing file{file}")
+        if verbosity==1:
+            print(f"Processing file{file}")
 
         con.execute(f"""
             COPY (
@@ -22,16 +23,12 @@ def sample_data(files,num_rows_each=1000):
 
 
     #Combine all of the sample files together into the combined file
-    print("Combining sample files")
-    sample_file="data/combined_sample.parquet"
-    con.execute(f"""
-        COPY(
-            SELECT *
-            FROM read_parquet('data/tmp_sample_*.parquet')
-        )
-        TO '{sample_file}'
-        (FORMAT PARQUET)
-    """)
+    if verbosity==1:
+        print("Combining sample files")
+    arrow_data=con.sql(f"""
+        SELECT *
+        FROM read_parquet('data/tmp_sample_*.parquet')
+    """).to_arrow_table()
 
 
     #Remove all of the sample files from the directory
@@ -42,8 +39,37 @@ def sample_data(files,num_rows_each=1000):
     for file_path in matched_files:
         try:
             os.remove(file_path)  # or os.unlink(file_path)
-            print(f"Deleted: {file_path}")
+            if verbosity==1:
+                print(f"Deleted: {file_path}")
         except OSError as e:
-            print(f"Failed to delete {file_path}: {e.strerror}")
+            if verbosity==1:
+                print(f"Failed to delete {file_path}: {e.strerror}")
 
-    return sample_file
+    return arrow_data
+
+
+def prepare_data_for_model(data):
+    X=data.select([
+        #"loan_id",#: string
+        #"period",#: timestamp[us]
+        "loan_age",#: int16
+        "current_interest_rate",#: double
+        "current_upb",#: double
+        "zero_balance_code",#: int16
+        "classic_fico",#: int16
+        "cltv",#: int16
+        "orig_upb",#: double
+        #"prepay_penalty_flag",#: string
+        #"property_state",#: string
+        #"occupancy_status",#: string
+        "dti",#: int16
+        #"orig_period",#: timestamp[us]
+        "hpi_orig",#: double
+        "hpi",#: double
+        "current_rate",#: double
+        "refi",#: double
+        "chg_hpi"#: double
+
+    ])
+    y=data.column('zero_balance_code')
+    return X,y
