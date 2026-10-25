@@ -18,6 +18,8 @@ to update the parameter combinations ("**parameters**") applied to the test set,
 
 to update the metric ("**key_metric**") that is used to rank the trained models performance, see the "**error_summary**" function in "**calculate_error.py**" 
 
+## Script Functions
+
 ### main.py
 The "**main.py**" script orchestrates the training, validation, and testing of the LightGBM model. 
 
