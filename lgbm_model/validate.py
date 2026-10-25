@@ -1,16 +1,49 @@
 from itertools import product
+import os
 from calculate_error import error_summary
+import lightgbm as lgb
+import pyarrow as pa
+import pyarrow.parquet as pq
 
-def validated_parameters(train,validate):
+def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
+
+
+
     parameters={
     'objective': ['binary'],
     'metric': ['binary_logloss'],
     'boosting_type': ['gbdt'],
-    'num_leaves': [31,50]
+    'num_leaves': [31,50],
+    'verbosity': [-1]
     }
-
+    best_params=None
+    best_metrics=None
     keys=parameters.keys()
-
+    temp_file_path="data/tmp_validation.parquet"
     for combination in product(*parameters.values()):
         current_params=dict(zip(keys,combination))
-        return current_params
+        model=lgb.train(current_params,train_data)
+        y_pred=model.predict(X_validate) #This returns a numpy array
+        arrow_table=pa.table({"actual":y_validate,"predicted":y_pred})
+        pq.write_table(arrow_table,temp_file_path)
+        error_metrics,key_metric=error_summary(temp_file_path)
+       
+        if best_params is None or error_metrics[key_metric]<best_metrics[key_metric]:
+            best_params=current_params
+            best_metrics=error_metrics
+            if verbosity==1:
+                print(f"New best parameters found: {best_params} with {key_metric}: {error_metrics[key_metric]}")
+            
+
+
+    try:
+        os.remove(temp_file_path)
+        if verbosity==1:
+            print(f"Deleted: {temp_file_path}")
+    except OSError as e:
+        if verbosity==1:
+            print(f"Failed to delete {temp_file_path}: {e.strerror}")
+
+    return best_params
+
+

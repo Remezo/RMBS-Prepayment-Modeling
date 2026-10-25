@@ -35,10 +35,10 @@ def sample_data(files,num_rows_each=1000000,verbosity=1):
     pattern = "data/tmp_sample_*.parquet"
     matched_files = glob.glob(pattern)
 
-    # 2. Iterate and delete safely
+    
     for file_path in matched_files:
         try:
-            os.remove(file_path)  # or os.unlink(file_path)
+            os.remove(file_path)  
             if verbosity==1:
                 print(f"Deleted: {file_path}")
         except OSError as e:
@@ -73,3 +73,4 @@ def prepare_data_for_model(data):
     ])
     y=data.column('zero_balance_code')
     return X,y
+

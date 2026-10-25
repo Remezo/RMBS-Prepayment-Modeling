@@ -12,7 +12,7 @@ for i in range(2024,2025,2):
     train_files=[]
     validate_files=[]
     test_files=[]
-    for j in range(3,9):
+    for j in range(8,9):
         train_files.append(f"data/loan_month/loan_month_{i-j}.parquet")
     for k in range(1,3):
         validate_files.append(f"data/loan_month/loan_month_{i-k}.parquet")
@@ -24,14 +24,15 @@ for i in range(2024,2025,2):
 
     X_train,y_train=prepare_data_for_model(training_sample)
     X_validate,y_validate=prepare_data_for_model(validate_sample)
-
     train_data=lgb.Dataset(X_train,label=y_train)
-    validate_data=lgb.Dataset(X_validate,label=y_validate)
 
+    
     #optimal parameters based on the validation data
-    model_params=validated_parameters(train_data,validate_data)
+    model_params=validated_parameters(train_data,X_validate,y_validate)
 
     #train the model
-    model=lgb.train(model_params,train_data)
+    #model=lgb.train(model_params,train_data)
+
+    
 
 #print(train_data.schema)
