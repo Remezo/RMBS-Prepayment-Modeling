@@ -4,6 +4,7 @@ import pyarrow.parquet as pq
 import duckdb
 from import_data import sample_data,prepare_data_for_model
 from validate import validated_parameters
+from test import test_in_batches
 
 
 
@@ -31,7 +32,8 @@ for i in range(2024,2025,2):
     model_params=validated_parameters(train_data,X_validate,y_validate)
 
     #train the model
-    #model=lgb.train(model_params,train_data)
+    model=lgb.train(model_params,train_data)
+    test_in_batches(model,test_files,batch_size=100000)
 
     
 

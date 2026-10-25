@@ -7,8 +7,6 @@ import pyarrow.parquet as pq
 
 def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
 
-
-
     parameters={
     'objective': ['binary'],
     'metric': ['binary_logloss'],
@@ -20,6 +18,11 @@ def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
     best_metrics=None
     keys=parameters.keys()
     temp_file_path="data/tmp_validation.parquet"
+
+    #Loop through all combinations of parameters
+    #Turn the predictions and actuals into a parquet file 
+    #Call the error_summary function to get the error metrics
+    #Keep the best parameters based on a key metric (e.g., log_loss)
     for combination in product(*parameters.values()):
         current_params=dict(zip(keys,combination))
         model=lgb.train(current_params,train_data)
@@ -35,7 +38,7 @@ def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
                 print(f"New best parameters found: {best_params} with {key_metric}: {error_metrics[key_metric]}")
             
 
-
+    #delete the temporary file
     try:
         os.remove(temp_file_path)
         if verbosity==1:
