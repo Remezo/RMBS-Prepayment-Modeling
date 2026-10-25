@@ -54,8 +54,7 @@ def prepare_data_for_model(data):
         #"period",#: timestamp[us]
         "loan_age",#: int16
         "current_interest_rate",#: double
-        "current_upb",#: double
-        "zero_balance_code",#: int16
+        #"current_upb",#: double
         "classic_fico",#: int16
         "cltv",#: int16
         "orig_upb",#: double

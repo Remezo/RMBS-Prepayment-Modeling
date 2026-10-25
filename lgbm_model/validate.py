@@ -11,7 +11,7 @@ def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
     'objective': ['binary'],
     'metric': ['binary_logloss'],
     'boosting_type': ['gbdt'],
-    'num_leaves': [31,50],
+    'num_leaves': [2,4,8,16,30,40,50,80,100],
     'verbosity': [-1]
     }
     best_params=None
@@ -26,12 +26,20 @@ def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
     for combination in product(*parameters.values()):
         current_params=dict(zip(keys,combination))
         model=lgb.train(current_params,train_data)
+
         y_pred=model.predict(X_validate) #This returns a numpy array
         arrow_table=pa.table({"actual":y_validate,"predicted":y_pred})
         pq.write_table(arrow_table,temp_file_path)
-        error_metrics,key_metric=error_summary(temp_file_path)
+        error_metrics,validation_key=error_summary(temp_file_path)
+        key_metric=validation_key[0]#This is a string key of the error_metrics dictionary
+        minimize=validation_key[1]#This is True if a smaller key metric is better
+
        
-        if best_params is None or error_metrics[key_metric]<best_metrics[key_metric]:
+        if ( 
+            best_params is None
+             or (minimize and error_metrics[key_metric]<best_metrics[key_metric]) 
+             or (not minimize and error_metrics[key_metric]>best_metrics[key_metric])
+        ):
             best_params=current_params
             best_metrics=error_metrics
             if verbosity==1:

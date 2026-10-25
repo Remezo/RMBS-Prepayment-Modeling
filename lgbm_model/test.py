@@ -5,11 +5,12 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 
 def test_in_batches(model,files, batch_size=1000000):
-    print("testing now")
-    con=duckdb.connect()
+
     output_path="data/tmp_test.parquet"
     schema = pa.schema([("actual", pa.int16()),("predicted", pa.float64())])
     writer=pq.ParquetWriter(output_path,schema=schema)
+
+    con=duckdb.connect()
     total_rows=0
     for file in files:
         reader=con.sql(f"SELECT *FROM read_parquet('{file}')").to_arrow_reader(batch_size=batch_size)
@@ -27,4 +28,5 @@ def test_in_batches(model,files, batch_size=1000000):
         
     if writer:
         writer.close()
+    
     return output_path
