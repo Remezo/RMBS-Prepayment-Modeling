@@ -14,7 +14,7 @@ The pipeline takes a sample of the training and validation data and trains multi
 
 To update the features that are used by the LightGBM model ("**X**"), see the "**prepare_data_for_model**" function in "**import_data.py**" 
 
-to update the parameter combinations ("**parameters**") applied to the test set, see the "**validated_parameters**" function in "**validate.py**" 
+To update the ten initial parameter configurations evaluated on the validation set, see "**INITIAL_PARAMETER_GRID**" in "**parameter_grid.py**".
 
 to update the metric ("**key_metric**") that is used to rank the trained models performance, see the "**error_summary**" function in "**calculate_error.py**" 
 
@@ -33,7 +33,10 @@ The "**import_data.py**" script contains the following functions
 ### validate.py
 The "**validate.py**" script contains the following functions
 
-"**validated_parameters**"- takes training and validation data and returns the parameter configuration with the best performance on the test set as a dictionary.
+"**validated_parameters**"- takes training and validation data and returns the parameter configuration with the best performance on the validation set as a dictionary.
+
+### parameter_grid.py
+The "**parameter_grid.py**" script contains ten reproducible LightGBM configurations covering baseline, shallow, deep, fast, conservative, regularized, and sampled models. The validation process evaluates each configuration and selects the best one using the validation metric defined in "**calculate_error.py**".
 
 ### calculate_error.py
 The "**calculate_error.py**" script contains the following functions
@@ -45,5 +48,3 @@ The "**calculate_error.py**" script contains the following functions
 The "**test.py**" script contains the following functions
  
  "**test_in_batches**" - takes a trained model and a list of files paths corresponding to test data and returns the file path to a parquet containing the actual targets and predicted probabilities.
-
-

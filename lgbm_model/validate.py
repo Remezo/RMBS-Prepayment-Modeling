@@ -1,32 +1,21 @@
-from itertools import product
 import os
 from calculate_error import error_summary
 import lightgbm as lgb
 import pyarrow as pa
 import pyarrow.parquet as pq
+from parameter_grid import INITIAL_PARAMETER_GRID
 
 def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
-
-    parameters={
-    'objective': ['binary'],
-    'metric': ['binary_logloss'],
-    'boosting_type': ['gbdt'],
-    'num_leaves': [2,4,8,16,30,40,50,80,100],
-    'verbosity': [-1]
-    }
-
-    
     best_params=None
     best_metrics=None
-    keys=parameters.keys()
     temp_file_path="data/tmp_validation.parquet"
 
-    #Loop through all combinations of parameters
+    #Loop through all predefined parameter configurations
     #Turn the predictions and actuals into a parquet file 
     #Call the error_summary function to get the error metrics
     #Keep the best parameters based on a key metric (e.g., log_loss)
-    for combination in product(*parameters.values()):
-        current_params=dict(zip(keys,combination))
+    for model_number, parameters in enumerate(INITIAL_PARAMETER_GRID, start=1):
+        current_params=parameters.copy()
         model=lgb.train(current_params,train_data)
 
         y_pred=model.predict(X_validate) #This returns a numpy array
@@ -45,7 +34,10 @@ def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
             best_params=current_params
             best_metrics=error_metrics
             if verbosity==1:
-                print(f"New best parameters found: {best_params} with {key_metric}: {error_metrics[key_metric]}")
+                print(
+                    f"New best configuration ({model_number}) found: "
+                    f"{best_params} with {key_metric}: {error_metrics[key_metric]}"
+                )
             
 
     #delete the temporary file
@@ -58,5 +50,3 @@ def validated_parameters(train_data,X_validate,y_validate,verbosity=-1):
             print(f"Failed to delete {temp_file_path}: {e.strerror}")
 
     return best_params
-
-
