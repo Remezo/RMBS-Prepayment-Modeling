@@ -12,6 +12,11 @@ The pipeline takes a sample of the training and validation data and trains multi
 
 ## User Adjustments
 
+See [Categorical conversion](CATEGORICAL_CONVERSION.md) for the reviewed columns,
+training-only encoder, optional feature flags, yearly filename configuration,
+memory tradeoffs, and verification. New categorical and timestamp features are
+explicit opt-ins. Run from the repository root with `python -m lgbm_model.main`.
+
 To update the features that are used by the LightGBM model ("**X**"), see the "**prepare_data_for_model**" function in "**import_data.py**" 
 
 To update the ten initial parameter configurations evaluated on the validation set, see "**INITIAL_PARAMETER_GRID**" in "**parameter_grid.py**".
