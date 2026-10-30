@@ -9,6 +9,7 @@ def error_summary(file):
     #This script also returns the key metric used for validation and the direction of optimality
 
     threshold=.5
+    epsilon = 1e-15 # To avoid 0, 1 when calculating log loss
     con=duckdb.connect()
     confusion_matrix=con.sql(f"""
     SELECT
@@ -27,7 +28,17 @@ def error_summary(file):
         SUM(CASE
             WHEN actual = 0 AND predicted <{threshold}
             THEN 1 ELSE 0
-        END) AS true_negative
+        END) AS true_negative,
+
+        AVG(
+            CASE
+                WHEN actual = 1 THEN
+                    -1 * LN(GREATEST({epsilon}, LEAST(1 - {epsilon}, predicted)))
+                WHEN actual = 0 THEN
+                    -1 * LN(1 - GREATEST({epsilon}, LEAST(1 - {epsilon}, predicted)))
+            END
+        ) AS log_loss
+
         FROM read_parquet('{file}')
     """).fetchall()[0]
 
@@ -35,32 +46,30 @@ def error_summary(file):
     FN=confusion_matrix[1]
     FP=confusion_matrix[2]
     TN=confusion_matrix[3]
+    log_loss = confusion_matrix[4] # Add log_loss to the metics dictionary
+
     if TP and FN and FP and TP!=0:
         precision=TP/(TP+FP)
         recall=TP/(TP+FN)
     else:
         precision=0
         recall=0
-
-  
-
-
-
     
-    metrics={"true_positive":TP,
+    metrics={
+             "true_positive":TP,
              "false_negative":FN,
              "false_positive":FP,
              "true_negative":TN,
              "precision":round(precision,4),
-             "recall":round(recall,4)
-
+             "recall":round(recall,4),
+             "log_loss": log_loss 
              }
 
 
     #Assign key_metric as a string that corresponds to the metric that should be used for validation
-    key_metric="true_positive"
+    key_metric="log_loss" # Changed to log loss as the key metric for validation
     #set minimize to True if you want to minimize the key metric in validation
     #set minimize to False if you want to maximize the key metric in validation
-    minimize=False
+    minimize= True # Set to True since we want to minimize log loss
     
     return metrics, (key_metric,minimize)
