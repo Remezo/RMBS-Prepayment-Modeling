@@ -9,6 +9,31 @@ This pipeline was created based on discussion from the 10-23-2026 team meeting.
 
 The pipeline takes a sample of the training and validation data and trains multiple LightGBM models with different combinations of training parameters. The best model is selected based on performance on the validation sample data. The selected model is then used to predict prepayment behavior for every loan in the test data files. The predictions are exported to parquet and evaluated for correctness. 
 
+## Check input files
+
+From `lgbm_model`, audit the local `data/loan_month/loan_month_perf_{year}.parquet`
+files before training:
+
+```sh
+python check_input_data.py --output data/input_validation.json
+```
+
+The checker defaults to 2016–2026; use `--first-year` and `--last-year` to
+select a different range. It scans every row for numeric missing/infinite
+values, target counts, and reporting dates, checks required feature types,
+and exercises model preparation on a small batch. It leaves inputs unchanged
+and exits with status 1 if a required file or data check fails. Missing numeric
+values are reported as warnings because LightGBM supports them. Model preparation
+maps `zero_balance_code = 1` to label 1 and codes `0, 2, 3, 9, 15, 16, 96` to
+label 0 for training, validation, and testing. Null and unknown codes are rejected.
+Code 1 includes scheduled maturity. The original Parquet values remain unchanged.
+The JSON report lists optional feature compatibility and the limits of the audit.
+
+For these filenames, running the model from `lgbm_model` requires
+`python main.py --file-template 'data/loan_month/loan_month_perf_{year}.parquet'`.
+From the repository root, use `python -m lgbm_model.main --file-template
+'lgbm_model/data/loan_month/loan_month_perf_{year}.parquet'` instead.
+
 
 ## User Adjustments
 

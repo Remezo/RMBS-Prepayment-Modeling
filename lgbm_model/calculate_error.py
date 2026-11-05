@@ -1,6 +1,37 @@
 import duckdb
 
 
+def monthly_cpr(file, test_files, threshold=0.5):
+    """Monthly loan-count fractions, assuming one row per active loan-month.
+
+    Use the original test files in prediction order; test.py preserves row order.
+    These are the requested monthly fractions, without annualization.
+    """
+    if not test_files or not 0 <= threshold <= 1:
+        raise ValueError("Provide test files and a threshold between 0 and 1")
+    with duckdb.connect() as con:
+        con.execute("SET preserve_insertion_order=true")
+        result = con.execute("""
+            SELECT date_trunc('month', source.period)::DATE AS month,
+                   count(*) AS active_loans,
+                   count(*) FILTER (WHERE actual = 1) AS actual_prepayments,
+                   count(*) FILTER (WHERE predicted >= ?) AS predicted_prepayments,
+                   (count(*) FILTER (WHERE actual = 1))::DOUBLE / count(*) AS actual_cpr,
+                   (count(*) FILTER (WHERE predicted >= ?))::DOUBLE / count(*) AS predicted_cpr,
+                   count(*) FILTER (WHERE source.period IS NULL
+                       OR source.zero_balance_code IS NULL
+                       OR actual IS NULL OR predicted IS NULL
+                       OR NOT isfinite(predicted) OR predicted NOT BETWEEN 0 AND 1
+                       OR actual <> CAST(source.zero_balance_code = 1 AS INTEGER)) AS invalid_rows
+            FROM read_parquet(?) AS source
+            POSITIONAL JOIN read_parquet(?) AS predictions
+            GROUP BY 1 ORDER BY 1
+        """, [threshold, threshold, [str(path) for path in test_files], str(file)]).fetchdf()
+    if result.empty or result["invalid_rows"].sum():
+        raise ValueError("Predictions must match the original test rows and have valid dates/values")
+    return result.drop(columns="invalid_rows")
+
+
 def error_summary(file):
     #File is the filepath to a parquet file that contains the actual and predicted columns
     #The actual column contains 0s and 1s

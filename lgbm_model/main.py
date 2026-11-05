@@ -7,7 +7,7 @@ import lightgbm as lgb
 import pandas as pd
 
 try:
-    from .calculate_error import error_summary
+    from .calculate_error import error_summary, monthly_cpr
     from .feature_encoder import FeatureEncoder
     from .import_data import (
         CATEGORICAL_CANDIDATES, TIMESTAMP_CANDIDATES,
@@ -16,7 +16,7 @@ try:
     from .test import test_in_batches
     from .validate import validated_parameters
 except ImportError:
-    from calculate_error import error_summary
+    from calculate_error import error_summary, monthly_cpr
     from feature_encoder import FeatureEncoder
     from import_data import (
         CATEGORICAL_CANDIDATES, TIMESTAMP_CANDIDATES,
@@ -102,6 +102,7 @@ def run_window(window, *, categorical_columns=(), timestamp_columns=(),
     )
     results, _ = error_summary(predictions)
     (destination / "metrics.json").write_text(json.dumps(results, indent=2) + "\n")
+    monthly_cpr(predictions, paths["test"]).to_csv(destination / "monthly_cpr.csv", index=False)
     print(results)
     return destination
 

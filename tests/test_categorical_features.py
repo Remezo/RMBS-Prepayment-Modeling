@@ -113,13 +113,32 @@ def test_projection_and_model_inputs_exclude_identifiers_and_leaking_balance(tmp
             FeatureEncoder([name])
 
 
-def test_target_semantics_are_not_inferred():
+def test_target_maps_known_exit_codes_and_preserves_input():
+    codes = [0, 1, 2, 3, 9, 15, 16, 96]
+    data = loan_month(["CA"] * len(codes))
+    column = data.schema.get_field_index("zero_balance_code")
+    data = data.set_column(column, "zero_balance_code", pa.array(codes, type=pa.int16()))
+    X, y = prepare_data_for_model(data)
+    assert y.to_pylist() == [0, 1, 0, 0, 0, 0, 0, 0]
+    assert y.type == pa.int16()
+    assert "zero_balance_code" not in X.column_names
+    assert data["zero_balance_code"].to_pylist() == codes
+    _, encoded_y = prepare_data_for_model(data, fit_encoder(data))
+    assert encoded_y.equals(y)
+    _, batch_y = prepare_data_for_model(data.to_batches()[0])
+    assert batch_y.to_pylist() == y.to_pylist()
+
+
+def test_target_rejects_null_unknown_and_string_codes():
     data = loan_month(["CA", "NY"])
     column = data.schema.get_field_index("zero_balance_code")
-    with pytest.raises(TypeError, match="no target recoding"):
+    with pytest.raises(TypeError, match="integer codes"):
         prepare_data_for_model(data.set_column(column, "zero_balance_code", pa.array(["01", "00"])))
-    with pytest.raises(ValueError, match="binary"):
-        prepare_data_for_model(data.set_column(column, "zero_balance_code", pa.array([1, 2])))
+    for codes in ([1, 99], [1, None]):
+        with pytest.raises(ValueError, match="non-null codes"):
+            prepare_data_for_model(data.set_column(column, "zero_balance_code", pa.array(codes)))
+    _, y = prepare_data_for_model(data.set_column(column, "zero_balance_code", pa.array([True, False])))
+    assert y.to_pylist() == [1, 0]
 
 
 @pytest.fixture

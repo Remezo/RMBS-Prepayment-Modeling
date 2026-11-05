@@ -17,3 +17,4 @@ data/
 *.pkl
 *.pickle
 .ipynb_checkpoints/
+lgbm_model/check_input_data.py

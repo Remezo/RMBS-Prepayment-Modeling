@@ -23,8 +23,8 @@ return incomplete output; the implementation now propagates the error.
 
 The `sfld/` library handles archive conversion and S3 access. Its source schema
 is distinct from the derived loan-month schema expected by this model. In
-particular, source zero-balance codes are strings; this model already expects
-a binary 0/1 target. No source-code-to-target interpretation is introduced.
+particular, source zero-balance codes are strings; this model expects integer
+codes and maps code 1 to label 1, with codes 0, 2, 3, 9, 15, 16, 96 mapped to 0.
 
 ## Recommendation and column decisions
 
@@ -107,8 +107,8 @@ in later rolling windows, as in the original setup.
 
 These controls do not establish whether an input column itself contains
 post-event information. That depends on its definition and prediction horizon.
-`zero_balance_code` is validated as an already prepared binary target rather
-than silently interpreting raw vendor codes.
+`zero_balance_code` is checked for known, non-null integer codes and mapped to
+a binary code-1 target. Code 1 includes scheduled maturity.
 
 ## Pipeline conversion versus upstream yearly preprocessing
 

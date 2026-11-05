@@ -15,6 +15,7 @@ NUMERIC_FEATURES = (
 CATEGORICAL_CANDIDATES = ("prepay_penalty_flag", "property_state", "occupancy_status")
 TIMESTAMP_CANDIDATES = ("period", "orig_period")
 TARGET = "zero_balance_code"
+ZERO_BALANCE_CODES = (0, 1, 2, 3, 9, 15, 16, 96)
 
 
 def required_columns(categorical_columns=(), timestamp_columns=()):
@@ -54,9 +55,10 @@ def prepare_data_for_model(data, encoder=None):
             raise TypeError(f"Feature {field.name} must be numeric, got {field.type}")
     y = data.column(TARGET)
     if not (pa.types.is_integer(y.type) or pa.types.is_boolean(y.type)):
-        raise TypeError("zero_balance_code must already be a binary 0/1 target; no target recoding is inferred")
+        raise TypeError("zero_balance_code must contain integer codes or boolean labels")
     if pa.types.is_boolean(y.type):
         y = pc.cast(y, pa.int16())
-    if y.null_count or not pc.all(pc.is_in(y, value_set=pa.array([0, 1], type=y.type))).as_py():
-        raise ValueError("zero_balance_code must contain only non-null binary 0/1 labels")
-    return X, pc.cast(y, pa.int16())
+    if y.null_count or not pc.all(pc.is_in(y, value_set=pa.array(ZERO_BALANCE_CODES, type=y.type))).as_py():
+        raise ValueError(f"zero_balance_code must contain non-null codes from {ZERO_BALANCE_CODES}")
+    # Code 1 is voluntary payoff (including maturity); other known codes are negative.
+    return X, pc.cast(pc.equal(y, 1), pa.int16())
