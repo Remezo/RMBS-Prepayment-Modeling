@@ -46,7 +46,7 @@ def sample_data(files, num_rows_each=1000000, verbosity=1, columns=None, seed=42
 
 
 def prepare_data_for_model(data, encoder=None):
-    """Use the same fitted encoder for training, validation, and every batch."""
+    """Use the shared encoder for training, validation, and every batch."""
     if isinstance(data, pa.RecordBatch):
         data = pa.Table.from_batches([data])
     X = data.select(NUMERIC_FEATURES) if encoder is None else encoder.transform(data)

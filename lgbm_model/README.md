@@ -38,9 +38,15 @@ From the repository root, use `python -m lgbm_model.main --file-template
 ## User Adjustments
 
 See [Categorical conversion](CATEGORICAL_CONVERSION.md) for the reviewed columns,
-training-only encoder, optional feature flags, yearly filename configuration,
+shared fixed encoder, optional feature flags, yearly filename configuration,
 memory tradeoffs, and verification. New categorical and timestamp features are
 explicit opt-ins. Run from the repository root with `python -m lgbm_model.main`.
+
+`main()` creates one encoder before the rolling-window loop. Its categorical
+vocabularies are predefined in `feature_encoder.py`, so categories keep the
+same codes across all windows even when a training sample misses a category.
+No encoder fitting or full-data vocabulary scan is needed. Each model saves
+a copy of the shared `encoder.json`; older encoder files can still be loaded.
 
 To update the features that are used by the LightGBM model ("**X**"), see the "**prepare_data_for_model**" function in "**import_data.py**" 
 

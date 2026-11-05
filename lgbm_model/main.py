@@ -1,4 +1,4 @@
-"""Rolling yearly LightGBM training with training-only feature encoders."""
+"""Rolling yearly LightGBM training with one shared, fixed feature encoder."""
 import argparse
 import json
 from pathlib import Path
@@ -48,8 +48,7 @@ def rolling_windows(first_year=2016, last_year=2025, train_years=3,
         }
 
 
-def run_window(window, *, categorical_columns=(), timestamp_columns=(),
-               sample_rows=1000000, batch_size=500000,
+def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
                output_dir="data/model_runs", seed=42):
     years = {split: [item["year"] for item in files] for split, files in window.items()}
     if (not all(years.get(split) for split in ("train", "validation", "test"))
@@ -60,12 +59,10 @@ def run_window(window, *, categorical_columns=(), timestamp_columns=(),
     resolved = [str(Path(path).resolve()) for files in paths.values() for path in files]
     if len(set(resolved)) != len(resolved):
         raise ValueError("Each year/split must reference a distinct file")
-    encoder = FeatureEncoder(categorical_columns, timestamp_columns)
-    columns = required_columns(categorical_columns, timestamp_columns)
+    columns = required_columns(encoder.categorical_columns, encoder.timestamp_columns)
     print(f"Train {years['train']} -> validate {years['validation']} -> test {years['test']}")
 
     training_sample = sample_data(paths["train"], sample_rows, -1, columns, seed)
-    encoder.fit(training_sample, window["train"])
     X_train, y_train = prepare_data_for_model(training_sample, encoder)
     # Release the raw sampled string columns before loading validation.
     del training_sample
@@ -124,13 +121,13 @@ def main():
     parser.add_argument("--output-dir", default="data/model_runs")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+    encoder = FeatureEncoder(args.categorical_columns, args.timestamp_columns)
     for window in rolling_windows(
         args.first_year, args.last_year, args.train_years, args.validate_years,
         args.test_years, args.file_template,
     ):
         run_window(
-            window, categorical_columns=args.categorical_columns,
-            timestamp_columns=args.timestamp_columns, sample_rows=args.sample_rows,
+            window, encoder=encoder, sample_rows=args.sample_rows,
             batch_size=args.batch_size, output_dir=args.output_dir, seed=args.seed,
         )
 

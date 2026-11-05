@@ -8,7 +8,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 import pytest
 
-from lgbm_model.feature_encoder import FeatureEncoder
+from lgbm_model.feature_encoder import CATEGORY_VOCABULARIES, FeatureEncoder
 from lgbm_model.import_data import (
     CATEGORICAL_CANDIDATES, NUMERIC_FEATURES, TIMESTAMP_CANDIDATES,
     prepare_data_for_model, required_columns, sample_data,
@@ -21,8 +21,8 @@ def loan_month(states, dates=None):
     data = {name: pa.array([1.0] * n) for name in NUMERIC_FEATURES}
     data.update({
         "property_state": pa.array(states, type=pa.string()),
-        "prepay_penalty_flag": pa.array(["flag-A"] * n, type=pa.string()),
-        "occupancy_status": pa.array(["status-A"] * n, type=pa.string()),
+        "prepay_penalty_flag": pa.array(["N"] * n, type=pa.string()),
+        "occupancy_status": pa.array(["P"] * n, type=pa.string()),
         "period": pa.array(dates if dates is not None else [datetime(2018, 2, 1)] * n,
                            type=pa.timestamp("us")),
         "orig_period": pa.array([datetime(2016, 1, 1)] * n, type=pa.timestamp("us")),
@@ -34,64 +34,83 @@ def loan_month(states, dates=None):
     return pa.table(data)
 
 
-def fit_encoder(data, categorical=("property_state",), timestamps=()):
-    return FeatureEncoder(categorical, timestamps).fit(
-        data, [{"year": 2018, "path": "loan_month_2018.parquet"}],
-    )
+def make_encoder(categorical=("property_state",), timestamps=()):
+    return FeatureEncoder(categorical, timestamps)
 
 
-def test_same_values_across_splits_and_frozen_unknown_missing(tmp_path):
+def test_fixed_categories_across_splits_and_saved_reload(tmp_path):
+    encoder = make_encoder()
+    vocabulary = list(CATEGORY_VOCABULARIES["property_state"])
+    ca, ny, tx = [vocabulary.index(state) for state in ("CA", "NY", "TX")]
     training = loan_month(["NY", "CA", None, "NY"])
-    encoder = fit_encoder(training)
-    assert encoder.categories["property_state"].to_pylist() == ["CA", "NY"]
-    assert encoder.transform(training)["property_state"].to_pylist() == [1, 0, -1, 1]
-    validation = loan_month(["CA", "TX", None, "NY"])
-    # Also handles different local Arrow dictionary codes; they are never reused.
+    assert encoder.transform(training)["property_state"].to_pylist() == [ny, ca, -1, ny]
+    # TX is known even though it never appeared in the training sample.
+    validation = loan_month(["CA", "TX", None, "NY", "XX"])
     validation = validation.set_column(
         validation.schema.get_field_index("property_state"), "property_state",
         pc.dictionary_encode(validation["property_state"]),
     )
-    for data in (validation, loan_month(["CA", "TX", None, "NY"])):
-        result = encoder.transform(data)
-        assert result["property_state"].to_pylist() == [0, -1, -1, 1]
-        assert result["property_state"].type == pa.int32()
+    result = encoder.transform(validation)
+    assert result["property_state"].to_pylist() == [ca, tx, -1, ny, -1]
+    assert result["property_state"].type == pa.int32()
     path = tmp_path / "encoder.json"
     encoder.save(path)
     loaded = FeatureEncoder.load(path)
-    assert loaded.transform(validation).equals(encoder.transform(validation))
-    assert loaded.training_files == [{"year": 2018, "path": "loan_month_2018.parquet"}]
-    assert "TX" not in json.loads(path.read_text())["categories"]["property_state"]
-    with pytest.raises(RuntimeError, match="frozen"):
-        encoder.fit(validation, [])
+    assert loaded.transform(validation).equals(result)
+    artifact = json.loads(path.read_text())
+    assert artifact["version"] == 2
+    assert artifact["vocabulary_source"] == "fixed"
+    assert "training_files" not in artifact
+    assert "TX" in artifact["categories"]["property_state"]
 
 
-def test_encoder_fit_never_uses_labels_and_keeps_exact_strings():
-    data = loan_month(["NY", "CA", "", " NY", None])
-    first = fit_encoder(data)
-    # An encoder can fit without any target/outcome column at all.
-    second = fit_encoder(data.drop(["zero_balance_code"]))
+def test_fixed_encoder_needs_no_training_data_and_keeps_exact_strings():
+    first, second = make_encoder(), make_encoder()
+    values = loan_month(["NY", "CA", "", " NY", None])
+    assert first.transform(values)["property_state"].to_pylist()[2:] == [-1, -1, -1]
+    assert first.transform(values.drop(["zero_balance_code"])).equals(first.transform(values))
     assert first.categories["property_state"].equals(second.categories["property_state"])
-    assert first.categories["property_state"].to_pylist() == ["", " NY", "CA", "NY"]
-    shuffled = fit_encoder(data.take(pa.array([4, 3, 2, 1, 0])))
-    assert first.categories["property_state"].equals(shuffled.categories["property_state"])
+    assert len(first.categories["property_state"]) == 56
+    codes = FeatureEncoder(("occupancy_status", "prepay_penalty_flag")).transform(values)
+    assert codes["occupancy_status"].to_pylist() == [2] * 5
+    assert codes["prepay_penalty_flag"].to_pylist() == [0] * 5
 
 
-def test_all_null_training_category_maps_everything_to_missing():
-    encoder = fit_encoder(loan_month([None, None]))
-    assert encoder.transform(loan_month(["CA", None]))["property_state"].to_pylist() == [-1, -1]
+def test_all_null_input_does_not_hide_valid_categories():
+    encoder = make_encoder()
+    assert encoder.transform(loan_month([None, None]))["property_state"].to_pylist() == [-1, -1]
+    assert encoder.transform(loan_month(["CA"]))["property_state"][0].as_py() >= 0
+
+
+def test_legacy_encoder_load_preserves_original_codes(tmp_path):
+    path = tmp_path / "legacy.json"
+    make_encoder().save(path)
+    payload = json.loads(path.read_text())
+    payload["version"] = 1
+    payload.pop("vocabulary_source")
+    payload["categories"]["property_state"] = ["NY", "CA"]
+    payload["training_files"] = [{"year": 2018, "path": "old_training.parquet"}]
+    path.write_text(json.dumps(payload))
+    loaded = FeatureEncoder.load(path)
+    values = loan_month(["NY", "CA", "TX"])
+    assert loaded.transform(values)["property_state"].to_pylist() == [0, 1, -1]
+    assert loaded.training_files == payload["training_files"]
+    loaded.save(path)
+    assert FeatureEncoder.load(path).transform(values).equals(loaded.transform(values))
 
 
 def test_fixed_timestamp_transform_nulls_and_future_dates():
     train = loan_month(["CA", "NY", "CA"], [datetime(1970, 1, 1), datetime(2018, 12, 1), None])
-    encoder = fit_encoder(train, timestamps=TIMESTAMP_CANDIDATES)
+    encoder = make_encoder(timestamps=TIMESTAMP_CANDIDATES)
     X, _ = prepare_data_for_model(train, encoder)
     assert X["period_month_index"].to_pylist() == [0, 587, None]
     assert X["period_month"].to_pylist() == [1, 12, None]
     future = encoder.transform(loan_month(["CA"], [datetime(2025, 1, 1)]))
     assert future["period_month_index"].to_pylist() == [660]
     with pytest.raises(TypeError, match="timezone-free timestamp"):
-        fit_encoder(train.set_column(train.schema.get_field_index("period"), "period",
-                                     pa.array(["2018", "2019", None])), timestamps=("period",))
+        make_encoder(timestamps=("period",)).transform(
+            train.set_column(train.schema.get_field_index("period"), "period",
+                             pa.array(["2018", "2019", None])))
 
 
 def test_projection_and_model_inputs_exclude_identifiers_and_leaking_balance(tmp_path):
@@ -104,7 +123,7 @@ def test_projection_and_model_inputs_exclude_identifiers_and_leaking_balance(tmp
     sample = sample_data(files, num_rows_each=3, verbosity=-1, columns=columns)
     assert sample.num_rows == 6
     assert sorted(sample["property_state"].to_pylist()) == ["CA"] * 3 + ["NY"] * 3
-    encoder = fit_encoder(sample, categorical=CATEGORICAL_CANDIDATES)
+    encoder = make_encoder(categorical=CATEGORICAL_CANDIDATES)
     X, _ = prepare_data_for_model(sample, encoder)
     assert X.column_names == [*NUMERIC_FEATURES, *CATEGORICAL_CANDIDATES]
     assert not {"loan_id", "unpaid_principal_balance", "current_upb"}.intersection(sample.column_names)
@@ -123,7 +142,7 @@ def test_target_maps_known_exit_codes_and_preserves_input():
     assert y.type == pa.int16()
     assert "zero_balance_code" not in X.column_names
     assert data["zero_balance_code"].to_pylist() == codes
-    _, encoded_y = prepare_data_for_model(data, fit_encoder(data))
+    _, encoded_y = prepare_data_for_model(data, make_encoder())
     assert encoded_y.equals(y)
     _, batch_y = prepare_data_for_model(data.to_batches()[0])
     assert batch_y.to_pylist() == y.to_pylist()
@@ -157,7 +176,7 @@ def test_real_lightgbm_train_validation_and_multi_year_batched_prediction(tmp_pa
     from lgbm_model.test import test_in_batches as predict_batches
 
     train = loan_month(["NY", "CA", "TX", "FL"] * 40)
-    encoder = fit_encoder(train, CATEGORICAL_CANDIDATES, TIMESTAMP_CANDIDATES)
+    encoder = make_encoder(CATEGORICAL_CANDIDATES, TIMESTAMP_CANDIDATES)
     X_train, y_train = prepare_data_for_model(train, encoder)
     dataset = lgb.Dataset(X_train, label=y_train, feature_name=encoder.feature_names,
                           categorical_feature=list(encoder.categorical_columns))
@@ -194,7 +213,7 @@ def test_batch_failure_does_not_publish_partial_output(tmp_path, lgb):
     from lgbm_model.test import test_in_batches as predict_batches
 
     table = loan_month(["CA", "NY"] * 20)
-    encoder = fit_encoder(table)
+    encoder = make_encoder()
     X, y = prepare_data_for_model(table, encoder)
     model = lgb.train(small_parameters(), lgb.Dataset(X, label=y, categorical_feature=["property_state"]))
     good, bad = tmp_path / "good.parquet", tmp_path / "bad.parquet"
@@ -230,11 +249,26 @@ def test_main_window_runs_sampling_tuning_training_and_test(tmp_path, monkeypatc
     # Exercise the real tuning loop with a small grid, rather than mocking training.
     monkeypatch.setattr(validation, "INITIAL_PARAMETER_GRID", [small_parameters()])
     window = next(main.rolling_windows(2016, 2020, file_template=template))
-    output = main.run_window(window, categorical_columns=CATEGORICAL_CANDIDATES,
+    encoder = make_encoder(CATEGORICAL_CANDIDATES)
+    output = main.run_window(window, encoder=encoder,
                              sample_rows=40, batch_size=7, output_dir=tmp_path / "runs")
     assert pq.read_table(output / "predictions.parquet").num_rows == 60
     artifact = json.loads((output / "encoder.json").read_text())
-    assert [item["year"] for item in artifact["training_files"]] == [2016, 2017, 2018]
+    assert artifact["vocabulary_source"] == "fixed"
+    assert artifact["categories"]["property_state"] == list(CATEGORY_VOCABULARIES["property_state"])
     assert json.loads((output / "window.json").read_text())["files"] == window
     with pytest.raises(ValueError, match="chronological"):
-        main.run_window({"train": window["test"], "validation": window["validation"], "test": window["train"]})
+        main.run_window({"train": window["test"], "validation": window["validation"], "test": window["train"]}, encoder=encoder)
+
+
+def test_main_reuses_one_encoder_across_rolling_windows(monkeypatch, lgb):
+    import lgbm_model.main as main
+
+    seen = []
+    monkeypatch.setattr(main, "run_window", lambda window, **kwargs: seen.append(kwargs["encoder"]))
+    monkeypatch.setattr("sys.argv", ["main.py", "--first-year", "2016", "--last-year", "2021",
+                                     "--categorical-columns", "property_state", "occupancy_status"])
+    main.main()
+    assert len(seen) == 2
+    assert seen[0] is seen[1]
+    assert seen[0].categories["property_state"].to_pylist() == list(CATEGORY_VOCABULARIES["property_state"])

@@ -44,9 +44,9 @@ still needed to assess whether a candidate should be excluded or regularized.
 | Actual commented column | Proposed representation | Eligibility/status |
 | --- | --- | --- |
 | `loan_id` | Exclude from predictors | Recommended identifier exclusion; meaning unconfirmed |
-| `prepay_penalty_flag` | Training-vocabulary `int32`, declared categorical | Available by explicit opt-in |
-| `property_state` | Training-vocabulary `int32`, declared categorical | Available by explicit opt-in |
-| `occupancy_status` | Training-vocabulary `int32`, declared categorical | Available by explicit opt-in |
+| `prepay_penalty_flag` | Fixed `N/Y` vocabulary, `int32`, declared categorical | Available by explicit opt-in |
+| `property_state` | Fixed state/territory vocabulary, `int32`, declared categorical | Available by explicit opt-in |
+| `occupancy_status` | Fixed `9/I/P/S` vocabulary, `int32`, declared categorical | Available by explicit opt-in |
 | `period` | Numeric month index since January 1970 plus month 1–12 | Conditional on meaning and prediction-time availability; disabled by default |
 | `orig_period` | Numeric month index since January 1970 plus month 1–12 | Conditional on meaning and prediction-time availability; disabled by default |
 
@@ -62,20 +62,24 @@ seasonality but do not impose a cyclic relationship between December/January.
 selection already excluded. The existing `orig_upb` is retained as requested
 by the original numeric feature selection; it is a different column.
 
-No category-domain assumptions are made: strings are matched exactly, with no
-trimming, case changes, or interpretation of vendor sentinel strings. Confirm
-the meanings of blanks/sentinel codes before changing that policy.
+`CATEGORY_VOCABULARIES` in `feature_encoder.py` defines the fixed domains:
+50 states, DC, and AS/GU/MP/PR/VI; occupancy `9/I/P/S`; penalty flags `N/Y`.
+The abbreviations follow [USPS](https://pe.usps.com/text/pub28/28apb.htm);
+occupancy and penalty values follow the
+[Freddie Mac guide](https://www.freddiemac.com/fmac-resources/research/pdf/general_user_guide_july_2026.pdf).
+Strings are matched exactly, with no trimming or case conversion. Occupancy
+`9` remains a category; nulls, blanks, and values outside the fixed domain map
+to `-1`. Review unexpected values rather than deriving new codes from test data.
 
 ## How consistency and time separation work
 
-1. Sample only the selected training-year files and project the selected columns.
-2. Fit `FeatureEncoder` on that training sample. For each opted-in categorical,
-   sort its distinct non-null strings and assign consecutive codes `0..K-1`.
-   The fit code does not inspect labels and works with the target column absent.
-3. Freeze the encoder. Reuse it for the training matrix, validation matrix,
-   and every batch of every test-year file. Local Arrow/Parquet dictionary
-   codes are decoded to strings and never reused as model codes.
-4. Encode both nulls and previously unseen strings as `-1`. LightGBM treats
+1. `main()` creates one `FeatureEncoder` before the rolling-window loop.
+2. Category codes are positions in the fixed vocabulary lists. No rows or
+   labels are inspected and there is no `fit()` step.
+3. Pass that same encoder to every `run_window()`. Reuse it for training,
+   validation, and every test batch. Local Arrow/Parquet dictionary codes
+   are decoded to strings and never reused as model codes.
+4. Encode nulls and strings outside the fixed vocabulary as `-1`. LightGBM treats
    negative categorical values as missing. Code `0` is a valid category.
    Unknowns share missing-value handling; this does not teach a distinct
    unknown-category effect without training observations of that group.
@@ -83,27 +87,17 @@ the meanings of blanks/sentinel codes before changing that policy.
    extraction, so future dates need no fitted dictionary or training range.
    Timezone-aware timestamps and string dates fail with an explicit error;
    parsing/timezone rules need to be defined upstream.
-6. Save `encoder.json`, `model.txt`, and `window.json` together for each window.
-   The manifest keeps `{year, path}` entries for each split. Reload the matching
-   encoder when reloading a model. Feature order is fixed and checked at prediction.
+6. Save a copy of the shared `encoder.json` alongside each `model.txt` and
+   `window.json`. Version 2 encoder files record `vocabulary_source: fixed`.
+   The loader also accepts older version 1 files and preserves their original
+   mappings for existing models. Feature order is fixed and checked at prediction.
 
-Each rolling model has its own vocabulary. `CA`, for example, has the same
-code in all years/splits used by one model, but its code may change for a
-different rolling model. This is correct provided each model travels with
-its encoder. A single permanent codebook would require an externally approved
-domain or a versioned historical vocabulary; neither has been supplied.
-
-A rare category absent from the training sample is unknown even if present in
-unsampled training rows. This avoids an extra full training-year scan; fitting
-from all training rows is a possible later tradeoff if rare-category coverage
-matters. No validation/test vocabulary scan is performed.
-
-Independent per-year factorization, fitting on concatenated train/validation/test,
-future category frequencies, and target encoding from validation/test outcomes
-are excluded. A vocabulary union over future covariates would use future
-information even without labels. Validation outcomes are used only for the
-existing parameter-selection step. Prior test years can become training data
-in later rolling windows, as in the original setup.
+Codes stay identical across all new rolling models. A valid category absent
+from a training sample still has its predefined code in validation and test.
+The model still has no training observations from which to learn that category's
+effect. No training/validation/test vocabulary scans or target-based encodings
+are performed. Validation outcomes are used for parameter selection. Prior test
+years can become training data in later windows, as in the original setup.
 
 These controls do not establish whether an input column itself contains
 post-event information. That depends on its definition and prediction horizon.
@@ -114,7 +108,7 @@ a binary code-1 target. Code 1 includes scheduled maturity.
 
 | Approach | Runtime and memory | Practical implications |
 | --- | --- | --- |
-| **Recommended: convert inside the pipeline** | Fit dictionaries on sampled training rows; convert validation once and test one batch at a time. Repeats conversion across overlapping windows, but avoids writing all years again. | Original yearly Parquet files remain unchanged. Arrow lookup uses the same saved vocabulary in every split. |
+| **Recommended: convert inside the pipeline** | Create fixed dictionaries once; convert each training/validation sample and test batch as needed. Avoids writing all years again. | Original yearly Parquet files remain unchanged. Arrow lookup uses the same fixed vocabulary across all windows. |
 | Upstream, stateless preparation | A one-time scan/rewrite of every yearly file; streaming DuckDB `COPY` can keep application memory bounded. Uses extra disk and I/O; repeated experiments may reuse the result. | Useful for agreed parsing, normalization, and fixed calendar features. Keep strings or apply an approved fixed external codebook. |
 | Upstream, training-derived integer encoding | Fit only on each window's training data, then stream conversion with that frozen dictionary. Requires a separate cache/version per rolling model, or careful artifact keys. | Independent yearly dictionaries are invalid. Encoded output must carry the exact encoder identity; current pipeline expects raw strings and must not double-encode integer inputs. |
 
@@ -193,8 +187,8 @@ python -m pytest -q
 
 `tests/test_categorical_features.py` uses synthetic yearly Parquet fixtures to
 verify stable codes across splits, local Arrow dictionary differences,
-missing/unseen values, all-null categories, exact-string handling, target-free
-fitting, artifact reload, fixed date extraction, excluded leaking balance
+missing/unrecognized values, all-null input, exact-string handling, construction
+without training data, legacy artifact reload, fixed date extraction, excluded balance
 columns, projected per-year sampling, the rolling filename logic, and failure
 cleanup. A real LightGBM model must make categorical tree splits; reloaded
 model/encoder predictions from multiple test files and batches must agree with
@@ -218,7 +212,7 @@ No access credentials or full loan records are needed for that review.
 
 | File | Change and purpose |
 | --- | --- |
-| `feature_encoder.py` | New training-only Arrow encoder and JSON persistence; provides one mapping per model. |
+| `feature_encoder.py` | Shared fixed Arrow encoder and JSON persistence; stable codes across all rolling windows, with legacy artifact loading. |
 | `import_data.py` | Explicit existing feature allowlist, projected per-year sampling, isolated temporary files, shared conversion, and binary-target validation. |
 | `main.py` | Import-safe entry point, year/path window records, optional features/file template, encoder wiring, and per-window artifacts. Preserves default split sizes/years. |
 | `test.py` | Same frozen encoder per batch, direct numeric Arrow prediction, feature-order checks, and complete-output publication with propagated errors. |
