@@ -99,8 +99,9 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
     )
     results, _ = error_summary(predictions)
     (destination / "metrics.json").write_text(json.dumps(results, indent=2) + "\n")
-    monthly_cpr(predictions, paths["test"]).to_csv(destination / "monthly_cpr.csv", index=False)
-    print(results)
+    cpr = monthly_cpr(predictions, paths["test"])
+    cpr.to_csv(destination / "monthly_cpr.csv", index=False)
+    print(results,cpr)
     return destination
 
 
