@@ -7,7 +7,7 @@ import lightgbm as lgb
 import pandas as pd
 
 try:
-    from .calculate_error import error_summary, monthly_cpr
+    from .calculate_error import error_summary, monthly_cpr, expected_monthly_cpr
     from .feature_encoder import FeatureEncoder
     from .import_data import (
         CATEGORICAL_CANDIDATES, TIMESTAMP_CANDIDATES,
@@ -59,7 +59,9 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
     resolved = [str(Path(path).resolve()) for files in paths.values() for path in files]
     if len(set(resolved)) != len(resolved):
         raise ValueError("Each year/split must reference a distinct file")
-    columns = required_columns(encoder.categorical_columns, encoder.timestamp_columns)+["period"]
+    columns = required_columns(encoder.categorical_columns, encoder.timestamp_columns)
+    if "period" not in columns:
+        columns.append("period")
     
     print(f"Train {years['train']} -> validate {years['validation']} -> test {years['test']}")
 
@@ -133,7 +135,7 @@ def main():
             window, encoder=encoder, sample_rows=args.sample_rows,
             batch_size=args.batch_size, output_dir=args.output_dir, seed=args.seed,
         )
-
+       
 
 if __name__ == "__main__":
     main()

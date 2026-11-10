@@ -18,7 +18,9 @@ def test_in_batches(model, files, batch_size=1000000, verbosity=-1, *, encoder=N
     columns = required_columns(
         encoder.categorical_columns if encoder else (),
         encoder.timestamp_columns if encoder else (),
-    ) + ["period"]
+    )
+    if "period" not in columns:
+        columns.append("period")
     projection = ", ".join('"' + name.replace('"', '""') + '"' for name in columns)
     output = Path(output_path)
     if output.resolve() in {Path(file).resolve() for file in files}:
