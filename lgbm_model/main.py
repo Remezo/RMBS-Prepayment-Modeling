@@ -16,7 +16,7 @@ try:
     from .test import test_in_batches
     from .validate import validated_parameters
 except ImportError:
-    from calculate_error import error_summary, monthly_cpr
+    from calculate_error import error_summary, monthly_cpr, expected_monthly_cpr
     from feature_encoder import FeatureEncoder
     from import_data import (
         CATEGORICAL_CANDIDATES, TIMESTAMP_CANDIDATES,
@@ -59,7 +59,8 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
     resolved = [str(Path(path).resolve()) for files in paths.values() for path in files]
     if len(set(resolved)) != len(resolved):
         raise ValueError("Each year/split must reference a distinct file")
-    columns = required_columns(encoder.categorical_columns, encoder.timestamp_columns)
+    columns = required_columns(encoder.categorical_columns, encoder.timestamp_columns)+["period"]
+    
     print(f"Train {years['train']} -> validate {years['validation']} -> test {years['test']}")
 
     training_sample = sample_data(paths["train"], sample_rows, -1, columns, seed)
@@ -99,7 +100,8 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
     )
     results, _ = error_summary(predictions)
     (destination / "metrics.json").write_text(json.dumps(results, indent=2) + "\n")
-    cpr = monthly_cpr(predictions, paths["test"])
+    #cpr = monthly_cpr(predictions, paths["test"])
+    cpr = expected_monthly_cpr(predictions)
     cpr.to_csv(destination / "monthly_cpr.csv", index=False)
     print(results,cpr)
     return destination

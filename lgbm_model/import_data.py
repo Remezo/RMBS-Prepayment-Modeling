@@ -45,7 +45,7 @@ def sample_data(files, num_rows_each=1000000, verbosity=1, columns=None, seed=42
         return con.read_parquet(samples).to_arrow_table()
 
 
-def prepare_data_for_model(data, encoder=None):
+def prepare_data_for_model(data, encoder=None,output_period=False):
     """Use the shared encoder for training, validation, and every batch."""
     if isinstance(data, pa.RecordBatch):
         data = pa.Table.from_batches([data])
@@ -61,4 +61,8 @@ def prepare_data_for_model(data, encoder=None):
     if y.null_count or not pc.all(pc.is_in(y, value_set=pa.array(ZERO_BALANCE_CODES, type=y.type))).as_py():
         raise ValueError(f"zero_balance_code must contain non-null codes from {ZERO_BALANCE_CODES}")
     # Code 1 is voluntary payoff (including maturity); other known codes are negative.
-    return X, pc.cast(pc.equal(y, 1), pa.int16())
+    if not output_period:
+        return X, pc.cast(pc.equal(y, 1), pa.int16())
+    else:
+        period=data.column("period")
+        return X, pc.cast(pc.equal(y, 1), pa.int16()), period

@@ -18,14 +18,14 @@ def test_in_batches(model, files, batch_size=1000000, verbosity=-1, *, encoder=N
     columns = required_columns(
         encoder.categorical_columns if encoder else (),
         encoder.timestamp_columns if encoder else (),
-    )
+    ) + ["period"]
     projection = ", ".join('"' + name.replace('"', '""') + '"' for name in columns)
     output = Path(output_path)
     if output.resolve() in {Path(file).resolve() for file in files}:
         raise ValueError("Prediction output must not overwrite an input file")
     output.parent.mkdir(parents=True, exist_ok=True)
     partial = output.with_name(output.name + ".partial")
-    schema = pa.schema([("actual", pa.int16()), ("predicted", pa.float64())])
+    schema = pa.schema([("actual", pa.int16()), ("predicted", pa.float64()),("period", pa.timestamp("us"))])
     try:
         with duckdb.connect() as con, pq.ParquetWriter(partial, schema) as writer:
             con.execute("SET preserve_insertion_order=true")
@@ -33,11 +33,11 @@ def test_in_batches(model, files, batch_size=1000000, verbosity=-1, *, encoder=N
             for file in files:
                 reader = con.read_parquet(str(file)).project(projection).to_arrow_reader(batch_size=batch_size)
                 for batch in reader:
-                    X_test, y_test = prepare_data_for_model(batch, encoder)
+                    X_test, y_test, period = prepare_data_for_model(batch, encoder, output_period=True)
                     if X_test.column_names != model.feature_name():
                         raise ValueError("Model and test feature names/order differ")
                     predicted = model.predict(X_test)
-                    writer.write_table(pa.table({"actual": y_test, "predicted": predicted}, schema=schema))
+                    writer.write_table(pa.table({"actual": y_test, "predicted": predicted, "period": period}, schema=schema))
                     batch_number += 1
                     if verbosity == 1:
                         print(f"Processed batch {batch_number}")

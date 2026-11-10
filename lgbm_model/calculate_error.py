@@ -32,6 +32,37 @@ def monthly_cpr(file, test_files, threshold=0.5):
     return result.drop(columns="invalid_rows")
 
 
+
+def expected_monthly_cpr(file, threshold=0.5):
+    """Monthly loan-count fractions, assuming one row per active loan-month.
+
+    Use the original test files in prediction order; test.py preserves row order.
+    These are the requested monthly fractions, without annualization.
+    """
+    print(file)
+    con=duckdb.connect()
+    results=con.sql(f"""
+    SELECT
+    period,
+    COUNT(*) AS loan_count,
+    SUM(actual) AS actual_prepayments,
+    SUM(predicted) AS expected_prepayments,
+
+        -- Monthly single mortality rate
+        AVG(actual) AS actual_smm,
+        AVG(predicted) AS predicted_smm,
+
+        -- Annualized conditional prepayment rate
+        1 - POWER(1 - AVG(actual), 12) AS actual_cpr,
+        1 - POWER(1 - AVG(predicted), 12) AS predicted_cpr
+
+
+    FROM read_parquet('{file}')
+    GROUP BY period
+    ORDER BY period
+    """).fetchdf()
+    return results
+
 def error_summary(file):
     #File is the filepath to a parquet file that contains the actual and predicted columns
     #The actual column contains 0s and 1s
