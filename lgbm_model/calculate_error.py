@@ -1,6 +1,27 @@
 import duckdb
 
 
+def monthly_rate_error(file):
+    """Mean absolute gap between actual/predicted monthly probability averages."""
+    with duckdb.connect() as con:
+        error, invalid = con.execute("""
+            SELECT avg(abs(actual_rate - predicted_rate)), sum(invalid_rows)
+            FROM (
+                SELECT date_trunc('month', period) AS month,
+                       avg(actual) AS actual_rate, avg(predicted) AS predicted_rate,
+                       count(*) FILTER (WHERE period IS NULL OR actual IS NULL
+                           OR actual NOT IN (0, 1) OR predicted IS NULL
+                           OR NOT isfinite(predicted)
+                           OR predicted NOT BETWEEN 0 AND 1) AS invalid_rows
+                FROM read_parquet(?)
+                GROUP BY 1
+            ) AS months
+        """, [str(file)]).fetchone()
+    if error is None or invalid:
+        raise ValueError("Require nonempty predictions with valid periods, labels and probabilities")
+    return error
+
+
 def monthly_cpr(file, test_files, threshold=0.5):
     """Monthly loan-count fractions, assuming one row per active loan-month.
 

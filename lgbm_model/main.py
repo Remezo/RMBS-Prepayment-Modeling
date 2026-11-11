@@ -32,7 +32,7 @@ def yearly_files(years, file_template):
     return [{"year": year, "path": file_template.format(year=year)} for year in years]
 
 
-def rolling_windows(first_year=2016, last_year=2025, train_years=3,
+def rolling_windows(first_year=2021, last_year=2026, train_years=3,
                     validate_years=1, test_years=1,
                     file_template="data/loan_month/loan_month_{year}.parquet"):
     if min(train_years, validate_years, test_years) <= 0 or first_year > last_year:
@@ -70,7 +70,9 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
     # Release the raw sampled string columns before loading validation.
     del training_sample
     validation_sample = sample_data(paths["validation"], sample_rows, -1, columns, seed)
-    X_validate, y_validate = prepare_data_for_model(validation_sample, encoder)
+    X_validate, y_validate, validation_periods = prepare_data_for_model(
+        validation_sample, encoder, output_period=True,
+    )
     del validation_sample
 
     train_data = lgb.Dataset(
@@ -78,9 +80,11 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
         feature_name=encoder.feature_names,
         categorical_feature=list(encoder.categorical_columns),
     )
-    params = validated_parameters(train_data, X_validate, y_validate, verbosity=-1)
+    params = validated_parameters(
+        train_data, X_validate, y_validate, validation_periods, verbosity=1,
+    )
     model = lgb.train(params, train_data)
-    del X_train, y_train, train_data, X_validate, y_validate
+    del X_train, y_train, train_data, X_validate, y_validate, validation_periods
 
     name = f"train_{min(years['train'])}_{max(years['train'])}_test_{min(years['test'])}_{max(years['test'])}"
     destination = Path(output_dir) / name
@@ -111,8 +115,8 @@ def run_window(window, *, encoder, sample_rows=1000000, batch_size=500000,
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--first-year", type=int, default=2016)
-    parser.add_argument("--last-year", type=int, default=2025)
+    parser.add_argument("--first-year", type=int, default=2021)
+    parser.add_argument("--last-year", type=int, default=2026)
     parser.add_argument("--train-years", type=int, default=3)
     parser.add_argument("--validate-years", type=int, default=1)
     parser.add_argument("--test-years", type=int, default=1)

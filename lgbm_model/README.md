@@ -30,9 +30,21 @@ Code 1 includes scheduled maturity. The original Parquet values remain unchanged
 The JSON report lists optional feature compatibility and the limits of the audit.
 
 For these filenames, running the model from `lgbm_model` requires
-`python main.py --file-template 'data/loan_month/loan_month_perf_{year}.parquet'`.
-From the repository root, use `python -m lgbm_model.main --file-template
+`python main.py --first-year 2021 --last-year 2026 --file-template 'data/loan_month/loan_month_perf_{year}.parquet'`.
+The model defaults to 2021–2026, inclusive.
+From the repository root, use `python -m lgbm_model.main --first-year 2021 --last-year 2026 --file-template
 'lgbm_model/data/loan_month/loan_month_perf_{year}.parquet'` instead.
+
+To compare prepayment rates across years without training a model:
+
+```sh
+python yearly_prepayment_rates.py --first-year 2016 --last-year 2025 --output data/yearly_prepayment_rates.csv
+```
+
+This scans all rows and groups by the reporting year in `period`. The percentage
+is rows with `zero_balance_code = 1` divided by all loan-month rows in that year,
+multiplied by 100. It is a pooled monthly event rate, not an annualized CPR or
+the percentage of distinct loans prepaid during the year. Inputs are unchanged.
 
 
 ## User Adjustments
@@ -52,7 +64,18 @@ To update the features that are used by the LightGBM model ("**X**"), see the "*
 
 To update the ten initial parameter configurations evaluated on the validation set, see "**INITIAL_PARAMETER_GRID**" in "**parameter_grid.py**".
 
-to update the metric ("**key_metric**") that is used to rank the trained models performance, see the "**error_summary**" function in "**calculate_error.py**" 
+Candidate models are ranked by validation monthly rate error from
+`monthly_rate_error()` in `calculate_error.py`, with log loss breaking ties.
+For each month this compares `AVG(actual)` with `AVG(predicted)`, then averages
+the absolute gaps equally across months. It uses probabilities, without a
+classification threshold or annualization; an error of `0.001` means 0.1
+percentage points. Reporting dates are metadata unless explicitly enabled as features.
+
+Each candidate stops after 50 rounds without improvement in validation log loss.
+The final fit uses the winning candidate's best round count, saved as
+`parameters.num_iterations` in `window.json`. The console reports each candidate's
+round count, monthly rate error and log loss. The first grid candidate uses 15
+leaves, at least 500 rows per leaf, L2 regularization of 5 and up to 2,000 rounds.
 
 ## Script Functions
 
@@ -69,10 +92,10 @@ The "**import_data.py**" script contains the following functions
 ### validate.py
 The "**validate.py**" script contains the following functions
 
-"**validated_parameters**"- takes training and validation data and returns the parameter configuration with the best performance on the validation set as a dictionary.
+"**validated_parameters**"- takes training data, validation features/labels and reporting periods; returns the configuration with the lowest validation monthly rate error, using its best round count.
 
 ### parameter_grid.py
-The "**parameter_grid.py**" script contains ten reproducible LightGBM configurations covering baseline, shallow, deep, fast, conservative, regularized, and sampled models. The validation process evaluates each configuration and selects the best one using the validation metric defined in "**calculate_error.py**".
+The "**parameter_grid.py**" script contains ten reproducible LightGBM configurations covering shallow, deep, fast, conservative, regularized, and sampled models. Candidates use early stopping on validation log loss; selection uses validation monthly rate error.
 
 ### calculate_error.py
 The "**calculate_error.py**" script contains the following functions

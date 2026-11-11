@@ -8,6 +8,8 @@ COMMON_PARAMETERS = {
     "seed": 42,
     "feature_fraction_seed": 42,
     "bagging_seed": 42,
+    # Reuse the dataset while comparing different minimum leaf sizes.
+    "feature_pre_filter": False,
     "verbosity": -1,
 }
 
@@ -19,11 +21,12 @@ def _configuration(**overrides):
 
 INITIAL_PARAMETER_GRID = [
     _configuration(
-        learning_rate=0.05,
-        num_iterations=500,
-        num_leaves=31,
+        learning_rate=0.03,
+        num_iterations=2000,
+        num_leaves=15,
         max_depth=-1,
-        min_child_samples=20,
+        min_child_samples=500,
+        lambda_l2=5.0,
         bagging_fraction=1.0,
         bagging_freq=0,
         feature_fraction=1.0,
